@@ -1,0 +1,51 @@
+groups:
+- name: workshop
+  rules:
+
+  # Alert for any instance that is unreachable for >5 minutes.
+
+
+  # Alert for any instance that has a median request latency >1s.
+  - alert: APIHighRequestLatency
+    expr: api_http_request_latencies_second{quantile="0.5"} > 1
+    for: 10m
+    annotations:
+      summary: "High request latency on {{ $labels.instance }}"
+      description: "{{ $labels.instance }} has a median request latency above 1s (current value: {{ $value }}s)"
+
+  - alert: requestrate
+    expr: sum by (method) (rate(tns_request_duration_seconds_count{job="tns-app", status_code!~"2.."}[1h])) / sum by (method) (rate(tns_request_duration_seconds_count{job="tns-app"}[1h])) > 0.1
+    for: 1m
+    annotations:
+      summary: "slo breach on {{ $labels.job }}"
+      description: "{{ $labels.job }} greater than 10% (current value: {{ $value }}s)"
+  - alert: targetdown
+    expr: 100 * (count by(job) (up == 0) / count by(job) (up)) > 10
+    for: 1m
+    annotations:
+      summary: "'{{ $value }}% or more of {{ $labels.job }} targets are down.'"
+      description: "Targets are down"
+  - alert: FailedReload
+    expr: prometheus_config_last_reload_successful == 0
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      description: "Reloading Prometheus 'configuration has failed for {{ $labels.namespace}}/{{ $labels.pod}}."
+      summary: "Prometheus configuration reload has failed"
+  - alert: HostOutOfMemory
+    expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes * 100 < 10
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Host out of memory (instance {{ $labels.instance }})"
+      description: "Node memory is filling up (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+  - alert: HostDiskWillFillIn4Hours
+    expr: predict_linear(node_filesystem_free_bytes{fstype!~"tmpfs"}[1h], 4 * 3600) < 0
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Host disk will fill in 4 hours (instance {{ $labels.instance }})"
+      description: "Disk will fill in 4 hours at current write rate\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"

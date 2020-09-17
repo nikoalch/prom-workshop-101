@@ -1,0 +1,26 @@
+db:
+  image: grafana/tns-db
+  command:
+    - '-log.level=debug'
+  ports:
+    - 8000:80
+
+app:
+  image: grafana/tns-app
+  command:
+    - '-log.level=debug'
+    - 'http://db'
+  links:
+    - db
+  ports:
+    - 8001:80
+
+loadgen:
+  image: grafana/tns-loadgen
+  command:
+    - '-log.level=debug'
+    - 'http://app'
+  links:
+    - app
+  ports:
+    - 8002:80
